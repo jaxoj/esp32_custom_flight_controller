@@ -50,12 +50,12 @@ void loop() {
     float dt = (now - loopTimer) / 1000000.0;
     loopTimer = now;
 
-    // --- 1. Read Radio ---
+    // --- Read Radio ---
     if (nrf.available()) {
         nrf.read();
     }
 
-    // --- 2. FAILSAFE (signal lost) ---
+    // --- FAILSAFE (signal lost) ---
     if (millis() - nrf.lastReceiveTime > 500) {  // 500ms timeout
         motors.update(PWM_MIN, 0, 0, 0);      // Kill motors
         pidRoll.reset();
@@ -63,7 +63,7 @@ void loop() {
         return;
     }
 
-    // --- 2. Safety / Arming ---
+    // --- Safety / Arming ---
     if (nrf.data.throttle < 1050) {
         motors.update(PWM_MIN, 0, 0, 0);
         pidRoll.reset();
@@ -71,25 +71,25 @@ void loop() {
         return;
     }
 
-    // --- 4. Apply Deadband (remove small noise) ---
+    // --- Apply Deadband (remove small noise) ---
     if (abs(nrf.data.rollTarget) < 2) nrf.data.rollTarget = 0;
     if (abs(nrf.data.pitchTarget) < 2) nrf.data.pitchTarget = 0;
     if (abs(nrf.data.yawTarget) < 2) nrf.data.yawTarget = 0;
 
-    // --- 5. Flight Control ---
+    // --- Flight Control ---
     // Update Sensors
     imu.update(dt);
 
-    // 6. Get current orientation
+    // Get current orientation
     float roll = imu.getRoll();
     float pitch = imu.getPitch();
 
-    // 7. Compute PID Corrections
+    // Compute PID Corrections
     // Setpoint is 0 (keep the drone level)
     float rollPID = pidRoll.compute(nrf.data.rollTarget, roll, dt);
     float pitchPID = pidPitch.compute(nrf.data.pitchTarget, pitch, dt);
 
-    // --- 6. Update Motors ---
+    // --- Update Motors ---
     motors.update(
         nrf.data.throttle,   // use real throttle from radio
         rollPID,

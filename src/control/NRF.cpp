@@ -27,6 +27,5 @@ void NRFReceiver::read() {
     if (radio.available()) {
         radio.read(&data, sizeof(RadioPacket));
         lastReceiveTime = millis();
-        Serial.printf("Roll: %3.1f | Pitch: %3.1f | Yaw: %3.1f | Throttle: %d\n", data.rollTarget, data.pitchTarget, data.yawTarget, data.throttle);
     }
 }

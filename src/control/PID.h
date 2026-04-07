@@ -12,5 +12,6 @@ private:
     float _kp, _ki, _kd;
     float _integral;
     float _previousError;
+    float _lastDerivative = 0;
     float _minOut, _maxOut;
 };

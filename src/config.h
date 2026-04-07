@@ -7,10 +7,10 @@
 #define NRF_ADDR "DRONE"
 
 // --- ESC Pins --- 
-#define ESC_FL 14
+#define ESC_FL 27
 #define ESC_FR 12
-#define ESC_BL 13
-#define ESC_BR 27
+#define ESC_BL 14
+#define ESC_BR 13
 // --- NRF Pins ---
 #define NRF_CE 5
 #define NRF_CSN 17
@@ -27,20 +27,20 @@
 // Increased P gains so you can feel the motors fighting back
 #define KP_ROLL 5.0   
 #define KI_ROLL 0.01
-#define KD_ROLL 1.5
+#define KD_ROLL 0.05
 
 #define KP_PITCH 5.0
 #define KI_PITCH 0.01
-#define KD_PITCH 1.5
+#define KD_PITCH 0.05
 
 #define KP_YAW 4.0
 #define KI_YAW 0.02
-#define KD_YAW 1.0
+#define KD_YAW 0.05
 
 // --- Limits ---
 #define PWM_MIN 1000
 #define PWM_MAX 2000
-#define BASE_THROTTLE 1300 // Increased to generate actual torque
+#define BASE_THROTTLE 1200 // Increased to generate actual torque
 
 // (NEW) Add an I-term limit to prevent windup on the ground
-#define PID_I_MAX 150.0
+#define PID_I_MAX 200.0

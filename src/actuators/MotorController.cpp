@@ -4,19 +4,19 @@
 
 void MotorController::begin()
 {
-    esc1.attach(ESC_FL, 1000, 2000);
-    esc2.attach(ESC_FR, 1000, 2000);
-    esc3.attach(ESC_BL, 1000, 2000);
-    esc4.attach(ESC_BR, 1000, 2000);
+    esc1.attach(ESC_FL, PWM_MIN, PWM_MAX);
+    esc2.attach(ESC_FR, PWM_MIN, PWM_MAX);
+    esc3.attach(ESC_BL, PWM_MIN, PWM_MAX);
+    esc4.attach(ESC_BR, PWM_MIN, PWM_MAX);
 }
 
 void MotorController::arm()
 {
-    esc1.writeMicroseconds(1000);
-    esc2.writeMicroseconds(1000);
-    esc3.writeMicroseconds(1000);
-    esc4.writeMicroseconds(1000);
-    delay(3000);
+    esc1.writeMicroseconds(PWM_MIN);
+    esc2.writeMicroseconds(PWM_MIN);
+    esc3.writeMicroseconds(PWM_MIN);
+    esc4.writeMicroseconds(PWM_MIN);
+    delay(5000);
 }
 
 void MotorController::update(int baseThrottle, float roll, float pitch, float yaw)
