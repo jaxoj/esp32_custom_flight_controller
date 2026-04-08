@@ -18,7 +18,7 @@ PID pidRoll(KP_ROLL, KI_ROLL, KD_ROLL, -PID_I_MAX, PID_I_MAX);
 PID pidPitch(KP_PITCH, KI_PITCH, KD_PITCH, -PID_I_MAX, PID_I_MAX);
 PID pidYaw(KP_YAW, KI_YAW, KD_YAW, -PID_I_MAX, PID_I_MAX);
 
-unsigned long loopTimer = 0, lastPrint = 0;
+unsigned long loopTimer = 0;
 
 void setup()
 {
@@ -54,7 +54,7 @@ void loop()
     }
 
     // --- FAILSAFE ---
-    if (millis() - nrf.lastReceiveTime > 500 || nrf.data.throttle < 1050) {
+    if (millis() - nrf.lastReceiveTime > 1000 || nrf.data.throttle < 1050) {
         motors.update(PWM_MIN, 0, 0, 0);
         pidRoll.reset();
         pidPitch.reset();
@@ -90,11 +90,4 @@ void loop()
         rollPID,
         pitchPID,
         yawPID);
-
-    // Debugging
-    if (millis() - lastPrint > 100) {
-        Serial.printf("Roll: %3.1f | Pitch: %3.1f | Yaw: %3.1f | YawPID: %3.1f\n", 
-                      nrf.data.rollTarget, nrf.data.pitchTarget, nrf.data.yawTarget, yawPID);
-        lastPrint = millis();
-    }
 }

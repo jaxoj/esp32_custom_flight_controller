@@ -41,7 +41,7 @@
 // --- Limits ---
 #define PWM_MIN 1000
 #define PWM_MAX 2000
-#define BASE_THROTTLE 1200 // Increased to generate actual torque
+#define BASE_THROTTLE 1350 // Increased to generate actual torque
 
 // (NEW) Add an I-term limit to prevent windup on the ground
 #define PID_I_MAX 200.0

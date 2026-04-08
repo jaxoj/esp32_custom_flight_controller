@@ -83,6 +83,8 @@ void IMU::update(float dt) {
     roll = ALPHA * (roll + gyroX * dt) + (1 - ALPHA) * accAngleX;
     pitch = ALPHA * (pitch + gyroY * dt) + (1 - ALPHA) * accAngleY;
     yaw = gyroZ;
+
+    Serial.printf("Roll: %3.1f | Pitch: %3.1f | Yaw: %3.1f\n", roll, pitch, yaw);
 }
 
 float IMU::getRoll() { return roll; }
