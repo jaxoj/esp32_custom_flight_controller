@@ -18,7 +18,59 @@ PID pidRoll(KP_ROLL, KI_ROLL, KD_ROLL, -PID_I_MAX, PID_I_MAX);
 PID pidPitch(KP_PITCH, KI_PITCH, KD_PITCH, -PID_I_MAX, PID_I_MAX);
 PID pidYaw(KP_YAW, KI_YAW, KD_YAW, -PID_I_MAX, PID_I_MAX);
 
-unsigned long loopTimer = 0;
+// --- Task Handles ---
+TaskHandle_t FlightTaskHandle;
+
+// --- Shared Data (Thread-Safeish) ---
+struct ControllData
+{
+    float throttle, rollTarget, pitchTarget, yawTarget;
+    bool connected;
+} sharedData;
+
+// --- Task 1: Flight Control (Core 1 - High Priority) ---
+void flightTask(void *pvParameters)
+{
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+    // 4ms period = 250Hz. Professional FCs usually run at 1kHz+,
+    // but 250Hz is a great stable start for I2C.
+    const TickType_t xFrequency = pdMS_TO_TICKS(4);
+    const float dt = 0.004f; // Fixed dt for the PID math
+
+    for (;;)
+    {
+        // Wait until exactly 4ms has passed since the last start
+        vTaskDelayUntil(&xLastWakeTime, xFrequency);
+
+        // Update the Sensors
+        imu.update(dt);
+
+        // Get local copies of targets (Minimize time spent accessing shared memory)
+        float t = sharedData.throttle;
+        float rt = sharedData.rollTarget;
+        float pt = sharedData.pitchTarget;
+        float yt = sharedData.yawTarget;
+        bool isConnected = sharedData.connected;
+
+        // Failsafe logic
+        if (!isConnected || t < 1050)
+        {
+            motors.update(PWM_MIN, 0, 0, 0);
+            pidRoll.reset();
+            pidPitch.reset();
+            pidYaw.reset();
+            continue;
+        }
+
+        // PID Calculations
+        float rPID = pidRoll.compute(rt, imu.getRoll(), dt);
+        float pPID = pidPitch.compute(pt, imu.getPitch(), dt);
+        float yPID = pidYaw.compute(yt, imu.getYaw(), dt);
+
+        // Motor Output
+        motors.update(t, rPID, pPID, yPID);
+    }
+}
 
 void setup()
 {
@@ -28,66 +80,49 @@ void setup()
     Wire.setClock(400000);
 
     nrf.begin();
-    Serial.println("Receiver Ready");
-
     imu.begin();
     imu.calibrate();
-
     motors.begin();
     motors.arm();
 
-    loopTimer = micros();
+    // Create the Flight Task on Core 1
+    // Priority 24 is very high. Stack size 8192 is plenty for math.
+    xTaskCreatePinnedToCore(
+        flightTask,
+        "FlightLoop",
+        8192,
+        NULL,
+        24,
+        &FlightTaskHandle,
+        1);
+
+    Serial.println("Flight Task Started on Core 1");
 }
 
 void loop()
 {
-    // Timing Control
-    while (micros() - loopTimer < TARGET_TIME_US);
-
-    unsigned long now = micros();
-    float dt = (now - loopTimer) / 1000000.0;
-    loopTimer = now;
+    // --- Task 2: Radio & Telemetry (Core 0 - Default) ---
+    // The loop() function on ESP32 runs on Core 1 by default, but we can 
+    // use it for the Radio since the Flight Task will preempt it.
 
     // --- Read Radio ---
-    if (nrf.available()) {
+    if (nrf.available())
+    {
         nrf.read();
+
+        // Update the shared struct for Core 1 to see
+        sharedData.throttle = nrf.data.throttle;
+        sharedData.rollTarget = (abs(nrf.data.rollTarget) < 2) ? 0 : nrf.data.rollTarget;
+        sharedData.pitchTarget = (abs(nrf.data.pitchTarget) < 2) ? 0 : nrf.data.pitchTarget;
+        sharedData.yawTarget = (abs(nrf.data.yawTarget) < 5) ? 0 : nrf.data.yawTarget;
+        sharedData.connected = true;
     }
 
-    // --- FAILSAFE ---
-    if (millis() - nrf.lastReceiveTime > 1000 || nrf.data.throttle < 1050) {
-        motors.update(PWM_MIN, 0, 0, 0);
-        pidRoll.reset();
-        pidPitch.reset();
-        pidYaw.reset();
-        return;
+    // Simple Failsafe timeout check
+    if (millis() - nrf.lastReceiveTime > 1000) {
+        sharedData.connected = false;
     }
 
-    // --- Deadband ---
-    if (abs(nrf.data.rollTarget) < 2) nrf.data.rollTarget = 0;
-    if (abs(nrf.data.pitchTarget) < 2) nrf.data.pitchTarget = 0;
-    if (abs(nrf.data.yawTarget) < 5) nrf.data.yawTarget = 0;
-
-    // --- Update Sensors ---
-    imu.update(dt);
-
-    float roll = imu.getRoll();
-    float pitch = imu.getPitch();
-    float yaw = imu.getYaw(); 
-
-    // --- PID Calculations ---
-    
-    // Roll/Pitch: Setpoint is the angle from the sticks, Measurement is current angle
-    float rollPID = pidRoll.compute(nrf.data.rollTarget, roll, dt);
-    float pitchPID = pidPitch.compute(nrf.data.pitchTarget, pitch, dt);
-    
-    // Yaw: Setpoint is desired rotation speed, Measurement is actual rotation speed
-    // If nrf.data.yawTarget is 0, the PID will fight to keep yawRate at 0 (No spinning)
-    float yawPID = pidYaw.compute(nrf.data.yawTarget, yaw, dt);
-
-    // --- Update Motors ---
-    motors.update(
-        nrf.data.throttle,
-        rollPID,
-        pitchPID,
-        yawPID);
+    // Small delay to let the background Watchdog timer breathe
+    delay(1);
 }
